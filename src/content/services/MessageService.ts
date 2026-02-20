@@ -9,6 +9,7 @@ import type { PaffTabUrlResponse } from '../types'
  */
 export class MessageService {
     private static listeners = new Set<(type: string) => void>()
+    private static boundHandler?: (msg: { type?: string }) => void
 
     /**
      * Register a listener for incoming messages from the background script.
@@ -23,6 +24,9 @@ export class MessageService {
 
         return () => {
             this.listeners.delete(callback)
+            if (this.listeners.size === 0) {
+                this.stopListening()
+            }
         }
     }
 
@@ -50,14 +54,26 @@ export class MessageService {
     }
 
     private static startListening() {
+        if (this.boundHandler) return
+        this.boundHandler = (msg: { type?: string }) => {
+            if (msg?.type) {
+                this.listeners.forEach((cb) => cb(msg.type!))
+            }
+        }
         try {
-            chrome.runtime?.onMessage?.addListener?.((msg: { type?: string }) => {
-                if (msg?.type) {
-                    this.listeners.forEach((cb) => cb(msg.type!))
-                }
-            })
+            chrome.runtime?.onMessage?.addListener?.(this.boundHandler)
         } catch {
             // Not in extension context
         }
+    }
+
+    private static stopListening() {
+        if (!this.boundHandler) return
+        try {
+            chrome.runtime?.onMessage?.removeListener?.(this.boundHandler)
+        } catch {
+            // Not in extension context
+        }
+        this.boundHandler = undefined
     }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Pin } from '../types'
 import { StorageService } from '../services/StorageService'
 
@@ -9,6 +9,7 @@ import { StorageService } from '../services/StorageService'
 export function usePins() {
     const [pins, setPins] = useState<Pin[]>([])
     const [appId, setAppId] = useState<string>('')
+    const isLoaded = useRef(false)
 
     // Resolve app ID and load pins on mount
     useEffect(() => {
@@ -17,13 +18,24 @@ export function usePins() {
             if (cancelled) return
             setAppId(id)
             StorageService.getPins(id).then((loaded) => {
-                if (!cancelled) setPins(loaded)
+                if (cancelled) return
+                setPins(loaded)
+                // Mark as loaded after first fetch to enable saving
+                isLoaded.current = true
             })
         })
         return () => {
             cancelled = true
         }
     }, [])
+
+    // Save pins whenever they change (only after initial load)
+    useEffect(() => {
+        if (!appId || !isLoaded.current) return
+        StorageService.savePins(appId, pins).catch((err) => {
+            console.error('[Formula Floater] Failed to save pins:', err)
+        })
+    }, [appId, pins])
 
     const addPin = useCallback(
         (control: string, prop: string, controlId?: string) => {
@@ -34,25 +46,19 @@ export function usePins() {
                 }
                 const pin: Pin = { control, prop }
                 if (controlId) pin.controlId = controlId
-                const next = [...prev, pin]
-                if (appId) StorageService.savePins(appId, next)
-                return next
+                return [...prev, pin]
             })
         },
-        [appId],
+        [],
     )
 
     const removePin = useCallback(
         (pin: Pin) => {
-            setPins((prev) => {
-                const next = prev.filter(
-                    (p) => p.control !== pin.control || p.prop !== pin.prop,
-                )
-                if (appId) StorageService.savePins(appId, next)
-                return next
-            })
+            setPins((prev) =>
+                prev.filter((p) => p.control !== pin.control || p.prop !== pin.prop),
+            )
         },
-        [appId],
+        [],
     )
 
     /**
@@ -60,18 +66,21 @@ export function usePins() {
      */
     const updatePinControlName = useCallback(
         (pin: Pin, newControlName: string) => {
-            setPins((prev) => {
-                const next = prev.map((p) => {
-                    if (p === pin || (p.controlId && p.controlId === pin.controlId && p.prop === pin.prop)) {
+            setPins((prev) =>
+                prev.map((p) => {
+                    if (
+                        p === pin ||
+                        (p.controlId &&
+                            p.controlId === pin.controlId &&
+                            p.prop === pin.prop)
+                    ) {
                         return { ...p, control: newControlName }
                     }
                     return p
-                })
-                if (appId) StorageService.savePins(appId, next)
-                return next
-            })
+                }),
+            )
         },
-        [appId],
+        [],
     )
 
     return { pins, addPin, removePin, updatePinControlName }

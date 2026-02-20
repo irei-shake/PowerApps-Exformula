@@ -52,17 +52,27 @@ export const PinBar: React.FC<PinBarProps> = ({
         <div className="paff-pins">
             <div className="paff-pins-list" ref={listRef}>
                 {pins.map((pin, idx) => (
-                    <button
+                    <div
                         key={`${pin.control}-${pin.prop}-${idx}`}
                         className="paff-pin"
+                        role="button"
+                        tabIndex={0}
                         title={`${pin.control}.${pin.prop}`}
                         onClick={() => handleClick(pin)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleClick(pin)
+                            }
+                        }}
                     >
                         <span>
                             {pin.control}.{pin.prop}
                         </span>
                         <button
+                            type="button"
                             className="paff-pin-close"
+                            aria-label={`Remove ${pin.control}.${pin.prop}`}
                             onClick={(e) => {
                                 e.stopPropagation()
                                 onRemove(pin)
@@ -70,7 +80,7 @@ export const PinBar: React.FC<PinBarProps> = ({
                         >
                             x
                         </button>
-                    </button>
+                    </div>
                 ))}
             </div>
         </div>

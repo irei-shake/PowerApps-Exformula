@@ -3,7 +3,9 @@ import { FloaterContainer } from './components/FloaterContainer'
 import { PinBar } from './components/PinBar'
 import { PropertyTabs } from './components/PropertyTabs'
 import { BusyOverlay } from './components/BusyOverlay'
-import { DomService } from './services/DomService'
+import { FormulaDetector } from './services/FormulaDetector'
+import { DetachManager } from './services/DetachManager'
+import { LayoutAdjuster } from './services/LayoutAdjuster'
 import { PowerAppsService } from './services/PowerAppsService'
 import { MessageService } from './services/MessageService'
 import { useFloaterState } from './hooks/useFloaterState'
@@ -11,7 +13,7 @@ import { usePins } from './hooks/usePins'
 import { useControlName } from './hooks/useControlName'
 import type { Pin } from './types'
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
     const {
         visible,
         minimized,
@@ -31,6 +33,7 @@ const App: React.FC = () => {
     const detachedRef = useRef<HTMLElement | null>(null)
     const floaterRef = useRef<HTMLDivElement>(null)
     const sectionCleanupRef = useRef<(() => void) | null>(null)
+    const originalParentRef = useRef<HTMLElement | null>(null)
 
     // ---------------------------------------------------------------
     // Detach / Restore logic
@@ -41,9 +44,10 @@ const App: React.FC = () => {
             setVisible(false)
             return
         }
-        const el = DomService.findFormulaBar()
+        const el = FormulaDetector.findFormulaBar()
         if (el) {
-            DomService.detach(el)
+            originalParentRef.current = el.parentElement
+            DetachManager.detach(el)
             detachedRef.current = el
             show()
         }
@@ -58,8 +62,9 @@ const App: React.FC = () => {
                     sectionCleanupRef.current()
                     sectionCleanupRef.current = null
                 }
-                DomService.restore(detachedRef.current)
+                DetachManager.restore(detachedRef.current)
                 detachedRef.current = null
+                originalParentRef.current = null
             }
             return
         }
@@ -83,7 +88,7 @@ const App: React.FC = () => {
                     floaterRef.current?.querySelector('.paff-floater') as HTMLElement ??
                     floaterRef.current
                 if (floaterEl && target) {
-                    sectionCleanupRef.current = DomService.setupSectionAutoHeight(
+                    sectionCleanupRef.current = LayoutAdjuster.setupSectionAutoHeight(
                         target,
                         floaterEl,
                     )
@@ -104,24 +109,43 @@ const App: React.FC = () => {
     // ---------------------------------------------------------------
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (visible && detachedRef.current && !minimized) {
+                // Avoid interfering with typing inside textareas or inputs
+                if (
+                    e.target instanceof HTMLInputElement ||
+                    e.target instanceof HTMLTextAreaElement ||
+                    (e.target as HTMLElement).getAttribute?.('role') === 'textbox' ||
+                    (e.target as HTMLElement).getAttribute?.('contenteditable') === 'true'
+                ) {
+                    return
+                }
+
+                if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setVisible(false)
+                    return
+                }
+            }
+
             if (
                 e.altKey &&
                 e.shiftKey &&
                 (e.code === 'KeyF' || e.code === 'KeyB')
             ) {
+                e.preventDefault()
                 doDetach()
             }
         }
         window.addEventListener('keydown', handleKeyDown, true)
         return () => window.removeEventListener('keydown', handleKeyDown, true)
-    }, [doDetach])
+    }, [visible, minimized, doDetach, setVisible])
 
     // ---------------------------------------------------------------
     // Background message (toolbar click / chrome.commands)
     // ---------------------------------------------------------------
     useEffect(() => {
         return MessageService.onMessage((type) => {
-            if (type === 'PAFF_DETACH_FORMULA') {
+            if (type === 'PAFF_TOGGLE' || type === 'PAFF_DETACH_FORMULA') {
                 doDetach()
             }
         })
@@ -177,7 +201,7 @@ const App: React.FC = () => {
     if (!visible) return null
 
     const isFormula = detachedRef.current
-        ? DomService.isFormulaPanel(detachedRef.current)
+        ? FormulaDetector.isFormulaPanel(detachedRef.current)
         : false
 
     const title = controlName || 'Formula Bar'
