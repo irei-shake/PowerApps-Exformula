@@ -1,95 +1,219 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { FloaterContainer } from './components/FloaterContainer'
+import { PinBar } from './components/PinBar'
+import { PropertyTabs } from './components/PropertyTabs'
+import { BusyOverlay } from './components/BusyOverlay'
 import { DomService } from './services/DomService'
 import { PowerAppsService } from './services/PowerAppsService'
-import { StorageService, type Pin } from './services/StorageService'
-import { PropertyTabs } from './components/PropertyTabs'
-import { PinBar } from './components/PinBar'
+import { MessageService } from './services/MessageService'
+import { useFloaterState } from './hooks/useFloaterState'
+import { usePins } from './hooks/usePins'
+import { useControlName } from './hooks/useControlName'
+import type { Pin } from './types'
 
 const App: React.FC = () => {
-    const [visible, setVisible] = useState(false)
-    const [minimized, setMinimized] = useState(false)
-    const [detachedElement, setDetachedElement] = useState<HTMLElement | null>(null)
-    const [pins, setPins] = useState<Pin[]>([])
-    const [appId, setAppId] = useState<string>('')
+    const {
+        visible,
+        minimized,
+        busy,
+        busyText,
+        show,
+        hide,
+        setVisible,
+        toggleMinimize,
+        startBusy,
+        stopBusy,
+    } = useFloaterState()
+
+    const { pins, addPin, removePin, updatePinControlName } = usePins()
+    const controlName = useControlName()
     const contentRef = useRef<HTMLDivElement>(null)
+    const detachedRef = useRef<HTMLElement | null>(null)
+    const floaterRef = useRef<HTMLDivElement>(null)
+    const sectionCleanupRef = useRef<(() => void) | null>(null)
 
-    useEffect(() => {
-        const id = StorageService.getAppId()
-        setAppId(id)
-        StorageService.getPins(id).then(setPins)
-    }, [])
-
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Alt+Shift+F to toggle
-            if (e.altKey && e.shiftKey && e.code === 'KeyF') {
-                if (visible) {
-                    setVisible(false)
-                } else {
-                    const el = DomService.findFormulaBar()
-                    if (el) {
-                        DomService.detach(el)
-                        setDetachedElement(el)
-                        setVisible(true)
-                    }
-                }
-            }
+    // ---------------------------------------------------------------
+    // Detach / Restore logic
+    // ---------------------------------------------------------------
+    const doDetach = useCallback(() => {
+        if (visible) {
+            // Already visible: restore
+            setVisible(false)
+            return
         }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
+        const el = DomService.findFormulaBar()
+        if (el) {
+            DomService.detach(el)
+            detachedRef.current = el
+            show()
+        }
+    }, [visible, show, setVisible])
+
+    // Move detached element into/out of the floater body
+    useEffect(() => {
+        if (!visible) {
+            // Restoring: move the element back, cleanup
+            if (detachedRef.current) {
+                if (sectionCleanupRef.current) {
+                    sectionCleanupRef.current()
+                    sectionCleanupRef.current = null
+                }
+                DomService.restore(detachedRef.current)
+                detachedRef.current = null
+            }
+            return
+        }
+
+        // Visible: move the detached element into the floater body.
+        // Use requestAnimationFrame to ensure the DOM refs are ready
+        // (Rnd may defer its internal DOM setup).
+        const moveElement = () => {
+            const target = detachedRef.current
+            const container = contentRef.current
+            if (!target || !container) return
+
+            // Avoid moving twice
+            if (container.contains(target)) return
+
+            container.appendChild(target)
+
+            // Setup section auto-height after element is in the DOM
+            requestAnimationFrame(() => {
+                const floaterEl =
+                    floaterRef.current?.querySelector('.paff-floater') as HTMLElement ??
+                    floaterRef.current
+                if (floaterEl && target) {
+                    sectionCleanupRef.current = DomService.setupSectionAutoHeight(
+                        target,
+                        floaterEl,
+                    )
+                }
+            })
+        }
+
+        // Try immediately, then retry on next frame to account for Rnd
+        if (contentRef.current && detachedRef.current) {
+            moveElement()
+        } else {
+            requestAnimationFrame(moveElement)
+        }
     }, [visible])
 
+    // ---------------------------------------------------------------
+    // Keyboard shortcut (in-page)
+    // ---------------------------------------------------------------
     useEffect(() => {
-        if (visible && detachedElement && contentRef.current) {
-            contentRef.current.appendChild(detachedElement)
-        } else if (!visible && detachedElement) {
-            DomService.restore(detachedElement)
-            setDetachedElement(null)
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (
+                e.altKey &&
+                e.shiftKey &&
+                (e.code === 'KeyF' || e.code === 'KeyB')
+            ) {
+                doDetach()
+            }
         }
-    }, [visible, detachedElement])
+        window.addEventListener('keydown', handleKeyDown, true)
+        return () => window.removeEventListener('keydown', handleKeyDown, true)
+    }, [doDetach])
 
-    const handlePin = (prop: string) => {
-        // TODO: Read actual control name
-        const control = 'Control'
-        const newPin = { control, prop }
-        if (!pins.some(p => p.control === control && p.prop === prop)) {
-            const newPins = [...pins, newPin]
-            setPins(newPins)
-            StorageService.savePins(appId, newPins)
-        }
-    }
+    // ---------------------------------------------------------------
+    // Background message (toolbar click / chrome.commands)
+    // ---------------------------------------------------------------
+    useEffect(() => {
+        return MessageService.onMessage((type) => {
+            if (type === 'PAFF_DETACH_FORMULA') {
+                doDetach()
+            }
+        })
+    }, [doDetach])
 
-    const handleUnpin = (pin: Pin) => {
-        const newPins = pins.filter(p => p !== pin)
-        setPins(newPins)
-        StorageService.savePins(appId, newPins)
-    }
+    // ---------------------------------------------------------------
+    // Pin select handler (with busy overlay)
+    // ---------------------------------------------------------------
+    const handlePinSelect = useCallback(
+        async (pin: Pin) => {
+            if (busy) return
+            startBusy(`Switching to ${pin.control}.${pin.prop}...`)
+            try {
+                const result = await PowerAppsService.selectControl(
+                    pin.control,
+                    pin.controlId,
+                )
+                // Control was renamed: auto-update pin
+                if (result.resolvedName && result.resolvedName !== pin.control) {
+                    updatePinControlName(pin, result.resolvedName)
+                }
+                await PowerAppsService.selectProperty(pin.prop)
+            } finally {
+                stopBusy()
+            }
+        },
+        [busy, startBusy, stopBusy, updatePinControlName],
+    )
 
-    const handleSelect = (prop: string) => {
+    // ---------------------------------------------------------------
+    // Property select / pin handlers
+    // ---------------------------------------------------------------
+    const handlePropertySelect = useCallback((prop: string) => {
         PowerAppsService.selectProperty(prop)
-    }
+    }, [])
 
+    const handlePropertyPin = useCallback(
+        (prop: string) => {
+            const control = controlName || PowerAppsService.readCurrentControlName() || 'Control'
+            const controlId = PowerAppsService.getControlIdForName(control)
+            addPin(control, prop, controlId)
+        },
+        [controlName, addPin],
+    )
+
+    const handleClose = useCallback(() => {
+        hide()
+    }, [hide])
+
+    // ---------------------------------------------------------------
+    // Render
+    // ---------------------------------------------------------------
     if (!visible) return null
 
-    return (
-        <FloaterContainer
-            title="Detached Formula Bar"
-            minimized={minimized}
-            onMinimize={() => setMinimized(!minimized)}
-            onClose={() => setVisible(false)}
-        >
+    const isFormula = detachedRef.current
+        ? DomService.isFormulaPanel(detachedRef.current)
+        : false
+
+    const title = controlName || 'Formula Bar'
+
+    const toolbarSlot = (
+        <>
             <PinBar
                 pins={pins}
-                onSelect={(pin) => handleSelect(pin.prop)}
-                onRemove={handleUnpin}
+                onSelect={handlePinSelect}
+                onRemove={removePin}
+                busy={busy}
             />
             <PropertyTabs
-                onSelect={handleSelect}
-                onPin={handlePin}
+                onSelect={handlePropertySelect}
+                onPin={handlePropertyPin}
             />
-            <div ref={contentRef} style={{ width: '100%', height: '100%' }} />
-        </FloaterContainer>
+        </>
+    )
+
+    return (
+        <div ref={floaterRef}>
+            <FloaterContainer
+                title={title}
+                minimized={minimized}
+                onMinimize={toggleMinimize}
+                onClose={handleClose}
+                isFormula={isFormula}
+                toolbar={toolbarSlot}
+                overlay={busy ? <BusyOverlay text={busyText} /> : undefined}
+            >
+                <div
+                    ref={contentRef}
+                    className="paff-content-area"
+                />
+            </FloaterContainer>
+        </div>
     )
 }
 

@@ -1,73 +1,87 @@
-import React, { useState, useEffect } from 'react'
-import { PowerAppsService } from '../services/PowerAppsService'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { usePropertyList } from '../hooks/usePropertyList'
 
 interface PropertyTabsProps {
     onSelect: (prop: string) => void
     onPin: (prop: string) => void
 }
 
-export const PropertyTabs: React.FC<PropertyTabsProps> = ({ onSelect, onPin }) => {
-    const [properties, setProperties] = useState<string[]>([])
+/**
+ * Filterable property tab bar. Supports mouse-wheel horizontal scrolling.
+ * Click selects a property; Alt/Ctrl+click or double-click pins it.
+ */
+export const PropertyTabs: React.FC<PropertyTabsProps> = ({
+    onSelect,
+    onPin,
+}) => {
+    const properties = usePropertyList()
     const [filter, setFilter] = useState('')
+    const listRef = useRef<HTMLDivElement>(null)
+    const filterTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [debouncedFilter, setDebouncedFilter] = useState('')
 
+    // Debounced filter input (60ms)
+    const handleFilterChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const value = e.target.value
+            setFilter(value)
+            if (filterTimerRef.current) clearTimeout(filterTimerRef.current)
+            filterTimerRef.current = setTimeout(() => {
+                setDebouncedFilter(value)
+            }, 60)
+        },
+        [],
+    )
 
-
+    // Mouse-wheel horizontal scroll
     useEffect(() => {
-        // Use subscription for real-time updates
-        const unsubscribe = PowerAppsService.subscribeProperties((props) => {
-            setProperties(props)
-        })
-        return () => unsubscribe()
+        const el = listRef.current
+        if (!el) return
+
+        const handleWheel = (ev: WheelEvent) => {
+            if (ev.deltaY === 0 && ev.deltaX === 0) return
+            const delta =
+                Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY
+            if (delta) {
+                ev.preventDefault()
+                el.scrollLeft += delta
+            }
+        }
+
+        el.addEventListener('wheel', handleWheel, { passive: false })
+        return () => el.removeEventListener('wheel', handleWheel)
     }, [])
 
-    const filtered = properties.filter(p => p.toLowerCase().includes(filter.toLowerCase()))
+    const filtered = properties.filter((p) =>
+        p.toLowerCase().includes(debouncedFilter.toLowerCase()),
+    )
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#191919', borderBottom: '1px solid #333' }}>
-            <div style={{ padding: '6px 10px', display: 'flex', gap: '6px' }}>
-                <input
-                    type="text"
-                    placeholder="Filter properties..."
-                    value={filter}
-                    onChange={e => setFilter(e.target.value)}
-                    style={{
-                        fontSize: '12px',
-                        padding: '5px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid #3a3a3a',
-                        background: '#141414',
-                        color: '#e6e6e6',
-                        width: '180px',
-                        outline: 'none',
-                    }}
-                />
-                <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', alignItems: 'center' }}>
-                    {filtered.map(p => (
-                        <button
-                            key={p}
-                            onClick={(e) => {
-                                if (e.altKey || e.ctrlKey) {
-                                    onPin(p)
-                                } else {
-                                    onSelect(p)
-                                }
-                            }}
-                            onDoubleClick={() => onPin(p)}
-                            style={{
-                                fontSize: '12px',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid #2f2f2f',
-                                background: '#232323',
-                                color: '#dcdcdc',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {p}
-                        </button>
-                    ))}
-                </div>
+        <div className="paff-tabs">
+            <input
+                type="text"
+                className="paff-filter"
+                placeholder="Filter properties..."
+                value={filter}
+                onChange={handleFilterChange}
+            />
+            <div className="paff-tabs-list" ref={listRef}>
+                {filtered.map((p) => (
+                    <button
+                        key={p}
+                        className="paff-tab"
+                        onClick={(e) => {
+                            if (e.altKey || e.ctrlKey) {
+                                onPin(p)
+                            } else {
+                                onSelect(p)
+                            }
+                        }}
+                        onDoubleClick={() => onPin(p)}
+                    >
+                        {p}
+                    </button>
+                ))}
             </div>
         </div>
     )

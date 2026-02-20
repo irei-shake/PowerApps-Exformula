@@ -1,58 +1,78 @@
-import React from 'react'
-import type { Pin } from '../services/StorageService'
+import React, { useRef, useEffect, useCallback } from 'react'
+import type { Pin } from '../types'
 
 interface PinBarProps {
     pins: Pin[]
     onSelect: (pin: Pin) => void
     onRemove: (pin: Pin) => void
+    busy: boolean
 }
 
-export const PinBar: React.FC<PinBarProps> = ({ pins, onSelect, onRemove }) => {
+/**
+ * Horizontal bar of pinned properties. Supports mouse-wheel horizontal scrolling.
+ */
+export const PinBar: React.FC<PinBarProps> = ({
+    pins,
+    onSelect,
+    onRemove,
+    busy,
+}) => {
+    const listRef = useRef<HTMLDivElement>(null)
+
+    // Mouse-wheel horizontal scroll
+    useEffect(() => {
+        const el = listRef.current
+        if (!el) return
+
+        const handleWheel = (ev: WheelEvent) => {
+            if (ev.deltaY === 0 && ev.deltaX === 0) return
+            const delta =
+                Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.deltaY
+            if (delta) {
+                ev.preventDefault()
+                el.scrollLeft += delta
+            }
+        }
+
+        el.addEventListener('wheel', handleWheel, { passive: false })
+        return () => el.removeEventListener('wheel', handleWheel)
+    }, [])
+
+    const handleClick = useCallback(
+        (pin: Pin) => {
+            if (busy) return
+            onSelect(pin)
+        },
+        [onSelect, busy],
+    )
+
     if (pins.length === 0) return null
 
     return (
-        <div style={{ display: 'flex', gap: '6px', padding: '6px 10px', background: '#161616', borderBottom: '1px solid #2a2a2a', overflowX: 'auto', scrollbarWidth: 'none' }}>
-            {pins.map((pin, idx) => (
-                <div
-                    key={`${pin.control}-${pin.prop}-${idx}`}
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 8px',
-                        borderRadius: '999px',
-                        background: '#2a2d34',
-                        color: '#e8eef6',
-                        border: '1px solid #3a3f49',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        fontSize: '12px',
-                    }}
-                    onClick={() => onSelect(pin)}
-                >
-                    <span>{pin.control}.{pin.prop}</span>
+        <div className="paff-pins">
+            <div className="paff-pins-list" ref={listRef}>
+                {pins.map((pin, idx) => (
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onRemove(pin)
-                        }}
-                        style={{
-                            all: 'unset',
-                            cursor: 'pointer',
-                            width: '16px',
-                            height: '16px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '8px',
-                            background: '#3a3f49',
-                            color: '#e8eef6',
-                        }}
+                        key={`${pin.control}-${pin.prop}-${idx}`}
+                        className="paff-pin"
+                        title={`${pin.control}.${pin.prop}`}
+                        onClick={() => handleClick(pin)}
                     >
-                        ×
+                        <span>
+                            {pin.control}.{pin.prop}
+                        </span>
+                        <button
+                            className="paff-pin-close"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onRemove(pin)
+                            }}
+                        >
+                            x
+                        </button>
                     </button>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
     )
 }

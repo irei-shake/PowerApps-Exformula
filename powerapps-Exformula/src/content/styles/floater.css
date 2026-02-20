@@ -1,0 +1,357 @@
+/* =========================================================
+   Power Apps Formula Floater - Content Script Styles
+   ========================================================= */
+
+/* --- Floating Container --- */
+.paff-floater {
+  position: fixed;
+  top: 64px;
+  right: 24px;
+  z-index: 2147483000;
+  background: #121212ee;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  min-width: 360px;
+  min-height: 120px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  resize: both;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Minimized state */
+.paff-floater.paff-minimized {
+  height: auto !important;
+  min-height: 0 !important;
+  width: 400px !important;
+  max-height: none;
+}
+
+.paff-floater.paff-minimized .paff-floater-body {
+  display: none !important;
+}
+
+.paff-floater.paff-minimized .paff-tabs {
+  display: none !important;
+}
+
+.paff-floater.paff-minimized .paff-pins {
+  display: none !important;
+}
+
+.paff-floater.paff-minimized .paff-resize-bl {
+  display: none;
+}
+
+/* --- Header --- */
+.paff-floater-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: linear-gradient(0deg, #1e1e1e, #252525);
+  cursor: move;
+  user-select: none;
+  color: #ddd;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.paff-floater-title {
+  font-size: 12px;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paff-floater-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* --- Buttons --- */
+.paff-button {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid #3a3a3a;
+  background: #2a2a2a;
+  color: #ddd;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.paff-button:hover {
+  background: #323232;
+}
+
+/* --- Body --- */
+.paff-floater-body {
+  position: relative;
+  background: #1a1a1a;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.paff-floater-body>* {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+/* --- Content Area (formula bar host) --- */
+.paff-content-area {
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.paff-content-area>* {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+/* --- Busy Overlay --- */
+.paff-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.paff-loading-box {
+  background: #1e1f22;
+  color: #e6e6e6;
+  border: 1px solid #3a3f49;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Property Tabs --- */
+.paff-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #191919;
+  border-bottom: 1px solid #333;
+  overflow: hidden;
+}
+
+.paff-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #3a3a3a;
+  background: #141414;
+  color: #e6e6e6;
+  width: 180px;
+  outline: none;
+}
+
+.paff-filter::placeholder {
+  color: #9aa0a6;
+}
+
+.paff-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: auto;
+  flex: 1 1 auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.paff-tabs-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.paff-tab {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #2f2f2f;
+  background: #232323;
+  color: #dcdcdc;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.paff-tab:hover {
+  background: #2a2a2a;
+}
+
+.paff-tab.active {
+  background: #35507a;
+  border-color: #446697;
+  color: #eef6ff;
+}
+
+/* --- Pinned Properties Bar --- */
+.paff-pins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #161616;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.paff-pins-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.paff-pins-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.paff-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #2a2d34;
+  color: #e8eef6;
+  border: 1px solid #3a3f49;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.paff-pin:hover {
+  background: #323640;
+}
+
+.paff-pin-close {
+  all: unset;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #3a3f49;
+  color: #e8eef6;
+}
+
+.paff-pin-close:hover {
+  background: #4a5060;
+}
+
+/* --- Bottom-Left Resize Handle --- */
+.paff-resize-bl {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: sw-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.08) 50%);
+  pointer-events: auto;
+}
+
+/* --- Hide Copilot button inside detached formula bar --- */
+.paff-content-area [class*="copilot" i],
+.paff-content-area [id*="copilot" i],
+.paff-content-area [data-testid*="copilot" i],
+.paff-content-area [aria-label*="Copilot"],
+.paff-content-area [class*="CopilotButton"],
+.paff-content-area [class*="fx-copilot"],
+.paff-content-area [class*="formulabar-copilot"],
+.paff-content-area [class*="FormulaBarCopilot"],
+.paff-content-area [class*="copilot-icon"],
+.paff-content-area [class*="CopilotIcon"],
+.paff-content-area [class*="aiButton"],
+.paff-content-area [class*="AiButton" i],
+.paff-content-area [data-automation-id*="copilot" i] {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+/* --- Fluent UI / Power Apps z-index overrides --- */
+[role='listbox'],
+[role='menu'],
+.ms-Callout,
+.ms-ContextualMenu,
+.ms-Layer,
+.ms-ComboBox-optionsContainer,
+.ms-Dropdown-callout,
+[class*='Callout'],
+[class*='Dropdown-callout'],
+[id^='callout'],
+[id^='ContextualMenu'] {
+  z-index: 2147483640 !important;
+}
+
+/* --- Power Apps layout adjustments when formula bar is detached --- */
+.paff-detached-formula .paff-floater .monaco-editor .margin {
+  pointer-events: none !important;
+  width: 0 !important;
+}
+
+.paff-detached-formula .paff-floater .monaco-editor .glyph-margin,
+.paff-detached-formula .paff-floater .monaco-editor .line-numbers,
+.paff-detached-formula .paff-floater .monaco-editor .line-numbers-active {
+  display: none !important;
+}
+
+/* --- Pick-mode Highlight --- */
+.paff-highlight-frame {
+  position: fixed;
+  pointer-events: none;
+  border: 2px solid #66aaff;
+  border-radius: 6px;
+  box-shadow: 0 0 0 20000px rgba(0, 0, 0, 0.2) inset;
+  z-index: 2147483600;
+}
+
+.paff-pick-hint {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #101418ee;
+  color: #dfe8f3;
+  border: 1px solid #2b3a4a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  z-index: 2147483601;
+}
+
+.paff-hidden {
+  display: none !important;
+}
