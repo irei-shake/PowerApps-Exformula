@@ -109,24 +109,6 @@ export const App: React.FC = () => {
     // ---------------------------------------------------------------
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (visible && detachedRef.current && !minimized) {
-                // Avoid interfering with typing inside textareas or inputs
-                if (
-                    e.target instanceof HTMLInputElement ||
-                    e.target instanceof HTMLTextAreaElement ||
-                    (e.target as HTMLElement).getAttribute?.('role') === 'textbox' ||
-                    (e.target as HTMLElement).getAttribute?.('contenteditable') === 'true'
-                ) {
-                    return
-                }
-
-                if (e.key === 'Escape') {
-                    e.preventDefault()
-                    setVisible(false)
-                    return
-                }
-            }
-
             if (
                 e.altKey &&
                 e.shiftKey &&
@@ -138,7 +120,7 @@ export const App: React.FC = () => {
         }
         window.addEventListener('keydown', handleKeyDown, true)
         return () => window.removeEventListener('keydown', handleKeyDown, true)
-    }, [visible, minimized, doDetach, setVisible])
+    }, [doDetach])
 
     // ---------------------------------------------------------------
     // Background message (toolbar click / chrome.commands)
