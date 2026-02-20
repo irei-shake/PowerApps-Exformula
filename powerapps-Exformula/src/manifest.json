@@ -1,0 +1,48 @@
+{
+    "manifest_version": 3,
+    "name": "Power Apps Formula Floater",
+    "description": "Detach the formula bar (or any element) into a draggable, resizable floating panel.",
+    "version": "0.1.0",
+    "action": {
+        "default_title": "Detach Formula Bar"
+    },
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "host_permissions": [
+        "https://make.powerapps.com/*",
+        "https://*.powerapps.com/*"
+    ],
+    "background": {
+        "service_worker": "src/background/index.ts"
+    },
+    "commands": {
+        "toggle-pick-mode": {
+            "suggested_key": {
+                "default": "Alt+Shift+F"
+            },
+            "description": "Toggle pick mode"
+        },
+        "detach-formula-bar": {
+            "suggested_key": {
+                "default": "Alt+Shift+B"
+            },
+            "description": "Detach formula bar"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://make.powerapps.com/*",
+                "https://*.powerapps.com/*"
+            ],
+            "js": [
+                "src/content/index.tsx"
+            ],
+            "run_at": "document_idle",
+            "all_frames": true
+        }
+    ]
+}
