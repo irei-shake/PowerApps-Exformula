@@ -117,6 +117,7 @@ export const App: React.FC = () => {
                 e.preventDefault()
                 doDetach()
             }
+            // Ignore other keys like Tab to prevent focus trapping or unexpected behavior
         }
         window.addEventListener('keydown', handleKeyDown, true)
         return () => window.removeEventListener('keydown', handleKeyDown, true)

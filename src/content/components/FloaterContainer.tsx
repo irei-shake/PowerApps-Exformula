@@ -56,7 +56,7 @@ export const FloaterContainer: React.FC<FloaterContainerProps> = ({
                     e.preventDefault()
                     setPos({ x: pos.x, y: SNAP_MARGIN })
                     break
-                case 'KeyS': // Down
+                case 'KeyX': // Down (Changed from S to avoid conflict)
                     e.preventDefault()
                     setPos({ x: pos.x, y: vh - size.height - SNAP_MARGIN })
                     break
@@ -99,19 +99,30 @@ export const FloaterContainer: React.FC<FloaterContainerProps> = ({
             }}
             {...(isFormula ? { 'data-paff-formula': '1' } : {})}
         >
-            <FloaterHeader
-                title={title}
-                minimized={minimized}
-                onMinimize={onMinimize}
-                onClose={onClose}
-            />
-            {!minimized && toolbar}
             <div
-                className="paff-floater-body"
-                style={{ display: minimized ? 'none' : undefined }}
+                className="paff-floater-inner"
+                onKeyDown={(e) => {
+                    // Prevent Tab key from bubbling up to Power Apps Studio which might steal focus
+                    if (e.key === 'Tab') {
+                        e.stopPropagation()
+                    }
+                }}
+                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}
             >
-                {children}
-                {overlay}
+                <FloaterHeader
+                    title={title}
+                    minimized={minimized}
+                    onMinimize={onMinimize}
+                    onClose={onClose}
+                />
+                {!minimized && toolbar}
+                <div
+                    className="paff-floater-body"
+                    style={{ display: minimized ? 'none' : undefined, flexGrow: 1 }}
+                >
+                    {children}
+                    {overlay}
+                </div>
             </div>
         </Rnd>
     )
