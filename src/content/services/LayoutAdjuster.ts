@@ -153,16 +153,65 @@ export class LayoutAdjuster {
 
     static applyMarginFix(target: HTMLElement) {
         try {
-            const root = target.querySelector('.monaco-editor')
-            const margin = root?.querySelector('.margin') as HTMLElement | null
-            if (margin) {
-                margin.style.setProperty('pointer-events', 'none', 'important')
-                margin.style.setProperty('width', '0px', 'important')
+            // ユーザー要望による指定：role="code"の要素を left: -60px でシフトする
+            // サジェスト領域はこの要素の「外側」にあるため切り取られず、
+            // コードエディタ本体の左余白だけが隠される。
+            const codeEl = target.querySelector('[role="code"]') as HTMLElement | null
+            if (!codeEl) return
+
+            const marginWidth = 60
+            const shiftStr = String(marginWidth)
+
+            if (codeEl.dataset.paffMarginShift !== shiftStr) {
+                // [role="code"] は left: -60px のみ設定し幅はMonacoに任せる
+                codeEl.style.removeProperty('margin-left')
+                codeEl.style.removeProperty('width')
+                codeEl.style.setProperty('left', `-${marginWidth}px`, 'important')
+
+                // 左にはみ出した60px部分が白く見えないように、背景を透明化
+                codeEl.style.setProperty('background-color', 'transparent', 'important')
+                codeEl.dataset.paffMarginShift = shiftStr
+
+                // 背景色指定を持つ内部要素も透過
+                const bg = codeEl.querySelector('.monaco-editor-background') as HTMLElement | null
+                if (bg) {
+                    bg.style.setProperty('background-color', 'transparent', 'important')
+                    bg.dataset.paffMarginShiftInner = '1'
+                }
+
+                // 左60pxにある行番号・マージン要素（はみ出し部分）を非表示
+                const marginEl = codeEl.querySelector('.margin') as HTMLElement | null
+                if (marginEl) {
+                    marginEl.style.setProperty('display', 'none', 'important')
+                    marginEl.dataset.paffMarginShiftInner = '1'
+                }
+
+                // 文字列がスクロールされた時にはみ出さないように、テキスト領域だけをクリップ
+                // ※ ここにはサジェスト(suggest-widget)は含まれないため見切れない
+                const scrollable = codeEl.querySelector('.monaco-scrollable-element') as HTMLElement | null
+                if (scrollable) {
+                    scrollable.style.setProperty('clip-path', `inset(-5000px -5000px -5000px 0px)`, 'important')
+                    scrollable.dataset.paffMarginShiftInner = '1'
+                }
+
+                // 親要素（#formulabar）を広げてMonacoにW+60pxの幅を認識させ、
+                // 右端の空白を埋めるよう正しく再配置させる
+                const parent = codeEl.parentElement
+                if (parent && parent.dataset.paffMarginClip !== '1') {
+                    parent.style.setProperty('width', `calc(100% + ${marginWidth}px)`, 'important')
+                    // 親の親にスクロールバーを出さないためのマイナスマージン
+                    parent.style.setProperty('margin-right', `-${marginWidth}px`, 'important')
+
+                    // !! サジェストを見切れさせる原因だった親のclip-pathを削除 !!
+                    parent.style.removeProperty('clip-path')
+                    parent.dataset.paffMarginClip = '1'
+
+                    // MonacoのResizeObserverを確実に発火させるためにリサイズイベントを発行
+                    setTimeout(() => {
+                        window.dispatchEvent(new Event('resize'))
+                    }, 50)
+                }
             }
-            const glyphs = target.querySelectorAll<HTMLElement>('.glyph-margin')
-            glyphs.forEach((g) => {
-                g.style.setProperty('display', 'none', 'important')
-            })
         } catch {
             /* ignore */
         }
@@ -170,15 +219,47 @@ export class LayoutAdjuster {
 
     static removeMarginFix(target: HTMLElement) {
         try {
-            const margins = target.querySelectorAll<HTMLElement>('.margin')
-            margins.forEach((m) => {
-                m.style.removeProperty('pointer-events')
-                m.style.removeProperty('width')
+            const codeEls = target.querySelectorAll<HTMLElement>('[role="code"][data-paff-margin-shift]')
+            codeEls.forEach((el) => {
+                el.style.removeProperty('left')
+                el.style.removeProperty('width')
+                el.style.removeProperty('background-color')
+                delete el.dataset.paffMarginShift
+
+                const parent = el.parentElement
+                if (parent && parent.dataset.paffMarginClip === '1') {
+                    parent.style.removeProperty('width')
+                    parent.style.removeProperty('margin-right')
+                    parent.style.removeProperty('clip-path')
+                    delete parent.dataset.paffMarginClip
+                }
             })
-            const glyphs = target.querySelectorAll<HTMLElement>('.glyph-margin')
-            glyphs.forEach((g) => {
-                g.style.removeProperty('display')
+
+            const innerEls = target.querySelectorAll<HTMLElement>('[data-paff-margin-shift-inner]')
+            innerEls.forEach((el) => {
+                el.style.removeProperty('width')
+                el.style.removeProperty('background-color')
+                el.style.removeProperty('display')
+                el.style.removeProperty('clip-path')
+                delete el.dataset.paffMarginShiftInner
             })
+
+            // クリーンアップ用
+            const oldShifted = target.querySelectorAll<HTMLElement>('[data-paff-margin-shift]')
+            oldShifted.forEach((el) => {
+                el.style.removeProperty('margin-left')
+                el.style.removeProperty('left')
+                el.style.removeProperty('width')
+                delete el.dataset.paffMarginShift
+            })
+            const oldClips = target.querySelectorAll<HTMLElement>('[data-paff-margin-clip]')
+            oldClips.forEach((el) => {
+                el.style.removeProperty('clip-path')
+                delete el.dataset.paffMarginClip
+            })
+
+            const styleEl = document.getElementById('paff-suggest-fix-style')
+            if (styleEl) styleEl.remove()
         } catch {
             /* ignore */
         }

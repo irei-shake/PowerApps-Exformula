@@ -165,10 +165,20 @@ export class PowerAppsService {
     // -------------------------------------------------------------------
 
     static async selectProperty(name: string): Promise<void> {
-        const combo = document.getElementById('powerapps-property-combo-box')
-        if (!combo) return
+        // コンボボックスが存在しない場合（コントロール切り替え直後など）は出現まで最大1秒待機する
+        let comboEl = document.getElementById('powerapps-property-combo-box') as HTMLInputElement | null
+        if (!comboEl) {
+            await this.waitFor(() => !!document.getElementById('powerapps-property-combo-box'), 1000)
+            comboEl = document.getElementById('powerapps-property-combo-box') as HTMLInputElement | null
+            if (!comboEl) return
+        }
 
-        this.safeClick(combo)
+        // 数式変更直後はMonacoにフォーカスがあり、クリックが無視される・コミット処理と競合する場合がある
+        // そのため、先にコンボボックスにフォーカスを移動してMonacoをblurさせ、少し待機してからクリックする
+        comboEl.focus()
+        await new Promise((resolve) => setTimeout(resolve, 100))
+
+        this.safeClick(comboEl)
         const lb = await this.waitForListbox()
         if (!lb) return
 
