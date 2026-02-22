@@ -1,0 +1,9 @@
+﻿de20a61 HEAD@{0}: checkout: moving from feature/preview-mirroring to main
+de20a61 HEAD@{1}: reset: moving to HEAD
+de20a61 HEAD@{2}: checkout: moving from main to feature/preview-mirroring
+de20a61 HEAD@{3}: commit: Fix: Change snap shortcut from Alt+Shift+S to X and prevent Tab key bubbling to fix focus issues
+9c7f64f HEAD@{4}: commit: Fix: Panel closes unexpectedly when clicking property tabs due to Escape event conflict
+bf02837 HEAD@{5}: commit: Refactor: Implement Codex recommendations (PinBar DOM, MessageService unsub, usePins effect, DomService split)
+f790ad9 HEAD@{6}: commit: Flatten directory structure and remove sample_dom.html
+69f5159 HEAD@{7}: commit: Update README and implement panel snap shortcuts (Alt+Shift+WASD)
+11e93ca HEAD@{8}: clone: from https://github.com/irei-shake/PowerApps-Exformula.git

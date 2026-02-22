@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react'
 import { FloaterContainer } from './components/FloaterContainer'
 import { PinBar } from './components/PinBar'
 import { PropertyTabs } from './components/PropertyTabs'
+import { SnippetBar, type SnippetBarRef } from './components/SnippetBar'
 import { BusyOverlay } from './components/BusyOverlay'
 import { FormulaDetector } from './services/FormulaDetector'
 import { DetachManager } from './services/DetachManager'
@@ -10,6 +11,7 @@ import { PowerAppsService } from './services/PowerAppsService'
 import { MessageService } from './services/MessageService'
 import { useFloaterState } from './hooks/useFloaterState'
 import { usePins } from './hooks/usePins'
+import { useSnippets } from './hooks/useSnippets'
 import { useControlName } from './hooks/useControlName'
 import type { Pin } from './types'
 
@@ -28,10 +30,12 @@ export const App: React.FC = () => {
     } = useFloaterState()
 
     const { pins, addPin, removePin, updatePinControlName } = usePins()
+    const { snippets, addSnippet, updateSnippet, removeSnippet } = useSnippets()
     const controlName = useControlName()
     const contentRef = useRef<HTMLDivElement>(null)
     const detachedRef = useRef<HTMLElement | null>(null)
     const floaterRef = useRef<HTMLDivElement>(null)
+    const snippetBarRef = useRef<SnippetBarRef>(null)
     const sectionCleanupRef = useRef<(() => void) | null>(null)
     const originalParentRef = useRef<HTMLElement | null>(null)
 
@@ -109,19 +113,42 @@ export const App: React.FC = () => {
     // ---------------------------------------------------------------
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (
-                e.altKey &&
-                e.shiftKey &&
-                (e.code === 'KeyF' || e.code === 'KeyB')
-            ) {
-                e.preventDefault()
-                doDetach()
+            // Snippet insertion (Shift + Alt + 1~0)
+            if (e.altKey && e.shiftKey) {
+                const isDigit = e.code.startsWith('Digit')
+                if (isDigit) {
+                    const digit = parseInt(e.code.replace('Digit', ''), 10)
+                    const index = digit === 0 ? 9 : digit - 1
+                    e.preventDefault()
+
+                    const snippet = snippets[index]
+                    if (snippet) {
+                        PowerAppsService.insertText(snippet.value)
+                    } else {
+                        snippetBarRef.current?.openNewSnippetFromSelection(index)
+                    }
+                    return
+                }
+
+                // Snap logic in FloaterContainer ...
+                if (e.code === 'KeyF' || e.code === 'KeyB') {
+                    e.preventDefault()
+                    doDetach()
+                    return
+                }
+
+                // Minimize/Expand toggle (Shift + Alt + M)
+                if (e.code === 'KeyM') {
+                    e.preventDefault()
+                    toggleMinimize()
+                    return
+                }
             }
             // Ignore other keys like Tab to prevent focus trapping or unexpected behavior
         }
         window.addEventListener('keydown', handleKeyDown, true)
         return () => window.removeEventListener('keydown', handleKeyDown, true)
-    }, [doDetach])
+    }, [doDetach, snippets, toggleMinimize])
 
     // ---------------------------------------------------------------
     // Background message (toolbar click / chrome.commands)
@@ -161,8 +188,15 @@ export const App: React.FC = () => {
     // ---------------------------------------------------------------
     // Property select / pin handlers
     // ---------------------------------------------------------------
-    const handlePropertySelect = useCallback((prop: string) => {
-        PowerAppsService.selectProperty(prop)
+    const handlePropertySelect = useCallback(async (prop: string) => {
+        await PowerAppsService.selectProperty(prop)
+        // Focus the Monaco editor after property selection
+        requestAnimationFrame(() => {
+            const editor = document.querySelector('.paff-floater-body-host .monaco-editor textarea, .paff-floater-body-host [role="textbox"]') as HTMLElement | null
+            if (editor) {
+                editor.focus()
+            }
+        })
     }, [])
 
     const handlePropertyPin = useCallback(
@@ -214,6 +248,16 @@ export const App: React.FC = () => {
                 isFormula={isFormula}
                 toolbar={toolbarSlot}
                 overlay={busy ? <BusyOverlay text={busyText} /> : undefined}
+                footer={
+                    <SnippetBar
+                        ref={snippetBarRef}
+                        snippets={snippets}
+                        onInsert={(value) => PowerAppsService.insertText(value)}
+                        onAdd={addSnippet}
+                        onUpdate={updateSnippet}
+                        onDelete={removeSnippet}
+                    />
+                }
             >
                 <div
                     ref={contentRef}

@@ -148,4 +148,36 @@ export class StorageService {
             localStorage.setItem(key, JSON.stringify(pins))
         }
     }
+
+    // -------------------------------------------------------------------
+    // Snippet CRUD
+    // -------------------------------------------------------------------
+
+    static async getSnippets(appId: string): Promise<any[]> {
+        const key = 'paff:snippets:' + appId
+        return new Promise((resolve) => {
+            if (chrome?.storage?.sync) {
+                chrome.storage.sync.get(key, (obj) => {
+                    const arr = obj?.[key]
+                    resolve(Array.isArray(arr) ? arr : [])
+                })
+            } else {
+                try {
+                    const raw = localStorage.getItem(key)
+                    resolve(raw ? JSON.parse(raw) : [])
+                } catch {
+                    resolve([])
+                }
+            }
+        })
+    }
+
+    static async saveSnippets(appId: string, snippets: any[]): Promise<void> {
+        const key = 'paff:snippets:' + appId
+        if (chrome?.storage?.sync) {
+            chrome.storage.sync.set({ [key]: snippets })
+        } else {
+            localStorage.setItem(key, JSON.stringify(snippets))
+        }
+    }
 }

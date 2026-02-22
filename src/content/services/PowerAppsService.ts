@@ -551,4 +551,78 @@ export class PowerAppsService {
             tick()
         })
     }
+    /**
+     * Insterts text into the current focused input (presumed to be the Monaco editor or textarea)
+     */
+    static insertText(text: string): void {
+        const activeEl = document.activeElement as HTMLElement
+        if (!activeEl) return
+
+        activeEl.focus()
+        const success = document.execCommand('insertText', false, text)
+
+        if (!success) {
+            if (activeEl instanceof HTMLTextAreaElement || activeEl instanceof HTMLInputElement) {
+                const start = activeEl.selectionStart || 0
+                const end = activeEl.selectionEnd || 0
+                const val = activeEl.value
+                activeEl.value = val.substring(0, start) + text + val.substring(end)
+                activeEl.selectionStart = activeEl.selectionEnd = start + text.length
+                activeEl.dispatchEvent(new Event('input', { bubbles: true }))
+            }
+        }
+    }
+
+    /**
+     * Gets the currently selected text from the focused input
+     */
+    static getSelectedText(): string {
+        const activeEl = document.activeElement as HTMLElement
+        if (activeEl instanceof HTMLTextAreaElement || activeEl instanceof HTMLInputElement) {
+            return activeEl.value.substring(activeEl.selectionStart || 0, activeEl.selectionEnd || 0)
+        }
+        const selection = window.getSelection()
+        return selection ? selection.toString() : ''
+    }
+
+    /**
+     * Get the bounding rect of the right-side property panel in Power Apps Studio.
+     * Returns null if the panel is not found.
+     */
+    static getPropertyPanelRect(): { x: number; y: number; width: number; height: number } | null {
+        // Strategy 1: sidebar by ID
+        const sidebar = document.getElementById('control-sidebar')
+            ?? document.getElementById('appmagic-control-sidebar')
+            ?? document.getElementById('propertypanel')
+        if (sidebar) {
+            const r = sidebar.getBoundingClientRect()
+            if (r.width > 0 && r.height > 0) return { x: r.x, y: r.y, width: r.width, height: r.height }
+        }
+
+        // Strategy 2: sidebar header
+        const header = document.getElementById('control-sidebar-header-control-name')
+        if (header) {
+            // Walk up to find the panel container
+            let el: HTMLElement | null = header
+            for (let i = 0; i < 10 && el; i++) {
+                el = el.parentElement
+                if (!el) break
+                const r = el.getBoundingClientRect()
+                if (r.width > 200 && r.height > 300 && r.x > window.innerWidth / 2) {
+                    return { x: r.x, y: r.y, width: r.width, height: r.height }
+                }
+            }
+        }
+
+        // Strategy 3: look for role=complementary (common for side panels)
+        const complementary = document.querySelector('[role="complementary"]') as HTMLElement | null
+        if (complementary) {
+            const r = complementary.getBoundingClientRect()
+            if (r.width > 200 && r.height > 300 && r.x > window.innerWidth / 2) {
+                return { x: r.x, y: r.y, width: r.width, height: r.height }
+            }
+        }
+
+        return null
+    }
 }

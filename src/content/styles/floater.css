@@ -12,7 +12,8 @@
   border: 1px solid #333;
   border-radius: 8px;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  overflow: visible;
+  /* Changed from hidden to allow Monaco suggest flyout to escape floater bounds */
   min-width: 360px;
   min-height: 120px;
   max-width: calc(100vw - 32px);
@@ -97,15 +98,33 @@
 .paff-floater-body {
   position: relative;
   background: #1a1a1a;
-  overflow: auto;
-  flex: 1 1 auto;
+  overflow: visible;
+  flex: 1 1 0;
   min-height: 0;
 }
 
-.paff-floater-body>* {
+.paff-floater-body-host {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.paff-floater-body-host>* {
   width: 100% !important;
   max-width: none !important;
   box-sizing: border-box;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.paff-floater-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  position: relative;
+  z-index: 10;
 }
 
 /* --- Content Area (formula bar host) --- */

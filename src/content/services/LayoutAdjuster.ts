@@ -52,13 +52,15 @@ export class LayoutAdjuster {
             ) as HTMLElement | null
             const tabsEl = floaterEl.querySelector('.paff-tabs') as HTMLElement | null
             const pinsEl = floaterEl.querySelector('.paff-pins') as HTMLElement | null
+            const footerEl = floaterEl.querySelector('.paff-floater-footer') as HTMLElement | null
             const panelH = floaterEl.getBoundingClientRect().height
             const headerH = headerEl?.getBoundingClientRect().height ?? 0
             const tabsH = tabsEl?.getBoundingClientRect().height ?? 0
             const pinsH = pinsEl?.getBoundingClientRect().height ?? 0
+            const footerH = footerEl?.getBoundingClientRect().height ?? 0
             const available = Math.max(
                 0,
-                Math.round(panelH - headerH - pinsH - tabsH),
+                Math.round(panelH - headerH - pinsH - tabsH - footerH),
             )
 
             // Sum heights of non-editor children
@@ -85,7 +87,7 @@ export class LayoutAdjuster {
             section.style.boxSizing = 'border-box'
             section.style.maxHeight = 'none'
             section.style.minHeight = '0px'
-            section.style.overflow = 'auto'
+            section.style.overflow = 'visible'
         }
 
         apply()

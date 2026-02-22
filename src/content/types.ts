@@ -16,3 +16,9 @@ export interface PaffMessage {
 export interface PaffTabUrlResponse {
   url: string | null
 }
+
+export interface Snippet {
+  id: string
+  name: string
+  value: string
+}

@@ -1,0 +1,6 @@
+﻿de20a61 Fix: Change snap shortcut from Alt+Shift+S to X and prevent Tab key bubbling to fix focus issues
+9c7f64f Fix: Panel closes unexpectedly when clicking property tabs due to Escape event conflict
+bf02837 Refactor: Implement Codex recommendations (PinBar DOM, MessageService unsub, usePins effect, DomService split)
+f790ad9 Flatten directory structure and remove sample_dom.html
+69f5159 Update README and implement panel snap shortcuts (Alt+Shift+WASD)
+11e93ca Initial commit: Power Apps Formula Floater Chrome extension
