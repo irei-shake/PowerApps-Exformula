@@ -179,7 +179,7 @@ export class PowerAppsService {
         await new Promise((resolve) => setTimeout(resolve, 100))
 
         this.safeClick(comboEl)
-        const lb = await this.waitForListbox()
+        const lb = await this.waitForListbox(1000, comboEl)
         if (!lb) return
 
         const opt = Array.from(
@@ -396,21 +396,32 @@ export class PowerAppsService {
     }
 
     /**
-     * Wait for the control with the given name to be selected in the tree.
+     * Wait for the control with the given name to be selected.
+     * Checks both aria-selected on the tree item (legacy) and the sidebar header text
+     * (current Power Apps behavior where aria-selected is not reliably updated).
      */
     private static waitForControlSelected(lower: string): Promise<boolean> {
         return this.waitFor(() => {
+            // Strategy 1: aria-selected on tree item (legacy Power Apps behavior)
             const sel = document.querySelector(
                 '[role="treeitem"][aria-selected="true"]',
             )
-            const txt = (
-                sel?.getAttribute('aria-label') ||
-                sel?.textContent ||
-                ''
-            )
-                .trim()
-                .toLowerCase()
-            return txt === lower
+            if (sel) {
+                const txt = (
+                    sel.getAttribute('aria-label') ||
+                    sel.textContent ||
+                    ''
+                ).trim().toLowerCase()
+                if (txt === lower) return true
+            }
+            // Strategy 2: sidebar header reflects the selected control
+            // (current Power Apps behavior - aria-selected may not be set)
+            const header = document.getElementById('control-sidebar-header-control-name')
+            if (header) {
+                const txt = (header.textContent || header.getAttribute('title') || '').trim().toLowerCase()
+                if (txt === lower) return true
+            }
+            return false
         }, 1500)
     }
 
@@ -525,14 +536,50 @@ export class PowerAppsService {
         }
     }
 
-    static waitForListbox(timeout = 1000): Promise<HTMLElement | null> {
+    /**
+     * After selectControl(), the sidebar panel needs time to re-render for the new control
+     * (especially when Monaco had focus and a formula commit triggers a full re-render).
+     * Waits until the sidebar header shows the expected control name before proceeding.
+     * This prevents selectProperty() from operating on a stale or mid-update combobox.
+     */
+    static async waitForSidebarReflectsControl(controlName: string, timeout = 2500): Promise<void> {
+        const lower = controlName.trim().toLowerCase()
+        await this.waitFor(() => {
+            const nameEl = document.getElementById('control-sidebar-header-control-name')
+            if (!nameEl) return false
+            const txt = (nameEl.textContent || nameEl.getAttribute('title') || '').trim().toLowerCase()
+            return txt === lower
+        }, timeout)
+    }
+
+    /**
+     * Wait for the listbox dropdown opened by a combo box element.
+     * Fluent UI v9 renders the options listbox at a portal root (separate from the combobox),
+     * referenced via aria-controls. Using querySelector('[role="listbox"]') alone returns an
+     * empty placeholder element first — so we must target the correct listbox with options.
+     */
+    static waitForListbox(timeout = 1000, comboEl?: HTMLInputElement | null): Promise<HTMLElement | null> {
         return new Promise((resolve) => {
             const start = performance.now()
             const tick = () => {
-                const lb = document.querySelector(
-                    '[role="listbox"], .ms-ComboBox-optionsContainer, .ms-Dropdown-callout',
+                // Primary: use aria-controls to find the exact listbox this combo opened
+                if (comboEl) {
+                    const listboxId = comboEl.getAttribute('aria-controls')
+                    if (listboxId) {
+                        const lb = document.getElementById(listboxId)
+                        if (lb && lb.querySelector('[role="option"]')) return resolve(lb)
+                    }
+                }
+                // Fallback: find any listbox that actually has options (not the empty placeholder)
+                const lbs = document.querySelectorAll<HTMLElement>('[role="listbox"]')
+                for (const lb of lbs) {
+                    if (lb.querySelector('[role="option"]')) return resolve(lb)
+                }
+                // Legacy fallback for older Fluent UI
+                const legacyLb = document.querySelector<HTMLElement>(
+                    '.ms-ComboBox-optionsContainer, .ms-Dropdown-callout',
                 )
-                if (lb) return resolve(lb as HTMLElement)
+                if (legacyLb) return resolve(legacyLb)
                 if (performance.now() - start > timeout) return resolve(null)
                 requestAnimationFrame(tick)
             }

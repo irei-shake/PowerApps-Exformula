@@ -177,6 +177,10 @@ export const App: React.FC = () => {
                 if (result.resolvedName && result.resolvedName !== pin.control) {
                     updatePinControlName(pin, result.resolvedName)
                 }
+                // Wait for the sidebar to fully reflect the new control before selecting
+                // the property. Without this, selectProperty() may operate on a stale or
+                // mid-rebuild combobox when Monaco had focus and triggered a formula commit.
+                await PowerAppsService.waitForSidebarReflectsControl(result.resolvedName ?? pin.control)
                 await PowerAppsService.selectProperty(pin.prop)
             } finally {
                 stopBusy()

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(node scripts/inspect_dom.mjs:*)",
+      "Bash(node scripts/inspect_dom2.mjs:*)",
+      "Bash(node scripts/inspect_dom3.mjs:*)",
+      "Bash(node scripts/inspect_dom4.mjs:*)",
+      "Bash(node scripts/inspect_dom5.mjs:*)",
+      "Bash(node scripts/inspect_timing2.mjs:*)",
+      "Bash(node scripts/reproduce_bug.mjs:*)",
+      "Bash(node scripts/inspect_combo.mjs:*)",
+      "Bash(node scripts/inspect_options.mjs:*)",
+      "Bash(node scripts/inspect_options2.mjs:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}
