@@ -264,6 +264,31 @@ export class PowerAppsService {
     // -------------------------------------------------------------------
 
     /**
+     * Ensures the Tree View pane is open by searching for the "Tree view" (or localized) tab button 
+     * and clicking it if tree items are not present on screen.
+     */
+    private static async ensureTreeViewOpen(): Promise<void> {
+        if (document.querySelector('[role="treeitem"]')) {
+            return // Already open
+        }
+
+        const buttons = Array.from(document.querySelectorAll<HTMLElement>('button, [role="tab"]'))
+        const treeBtn = buttons.find(el => {
+            const txt = (el.getAttribute('title') || el.getAttribute('aria-label') || el.textContent || '').toLowerCase()
+            return txt.includes('tree view') ||
+                txt.includes('ツリー') ||
+                txt.includes('vista de árbol') ||
+                txt.includes('arborescence') ||
+                txt.includes('baum')
+        })
+
+        if (treeBtn) {
+            this.safeClick(treeBtn)
+            await this.waitFor(() => !!document.querySelector('[role="treeitem"]'), 1500)
+        }
+    }
+
+    /**
      * Select a control in the Power Apps tree view.
      * When controlId (data-fui-tree-item-value) is available, uses it as primary lookup.
      * Falls back to name search only when controlId is not provided.
@@ -274,6 +299,9 @@ export class PowerAppsService {
         controlId?: string,
     ): Promise<{ success: boolean; resolvedName?: string }> {
         if (!name && !controlId) return { success: false }
+
+        // Make sure the tree view is visible before searching
+        await this.ensureTreeViewOpen()
 
         let target: HTMLElement | null = null
 
