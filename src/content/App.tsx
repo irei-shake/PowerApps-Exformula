@@ -182,6 +182,10 @@ export const App: React.FC = () => {
                 // mid-rebuild combobox when Monaco had focus and triggered a formula commit.
                 await PowerAppsService.waitForSidebarReflectsControl(result.resolvedName ?? pin.control)
                 await PowerAppsService.selectProperty(pin.prop)
+                requestAnimationFrame(() => {
+                    const editor = document.querySelector('.paff-floater-body-host .monaco-editor textarea, .paff-floater-body-host [role="textbox"]') as HTMLElement | null
+                    if (editor) editor.focus()
+                })
             } finally {
                 stopBusy()
             }

@@ -8,8 +8,8 @@ interface SnippetEditorProps {
 }
 
 export const SnippetEditor: React.FC<SnippetEditorProps> = ({ snippet, onSave, onCancel }) => {
-    const [name, setName] = useState(snippet ? snippet.name : '')
-    const [value, setValue] = useState(snippet ? snippet.value : '')
+    const [name, setName] = useState(snippet?.name || '')
+    const [value, setValue] = useState(snippet?.value || (snippet as any)?.formula || '')
     const nameRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {

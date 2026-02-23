@@ -29,8 +29,7 @@ export const SnippetBar = forwardRef<SnippetBarRef, SnippetBarProps>(({
 
     useImperativeHandle(ref, () => ({
         openNewSnippetFromSelection: (index: number) => {
-            const selectedText = PowerAppsService.getSelectedText()
-            if (!selectedText) return
+            const selectedText = PowerAppsService.getSelectedText() || ''
             setSelectedIndex(index)
             setPrefilledValue(selectedText)
             setIsEditing(true)
@@ -104,9 +103,11 @@ export const SnippetBar = forwardRef<SnippetBarRef, SnippetBarProps>(({
                                 cursor: 'pointer',
                                 fontSize: '12px',
                                 minWidth: '32px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                maxWidth: '120px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                textAlign: 'center',
                                 transition: 'all 0.1s'
                             }}
                         >
